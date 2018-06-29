@@ -26,16 +26,16 @@ type neuralNetConfig struct {
 	learningRate  float64
 }
 
-type neuralNet struct {
-	config  neuralNetConfig
-	wHidden *mat.Dense
-	bHidden *mat.Dense
-	wOut    *mat.Dense
-	bOut    *mat.Dense
+type neuralNetwork struct {
+	config        neuralNetConfig
+	hiddenWeights *mat.Dense
+	hiddenBiases  *mat.Dense
+	outputWeights *mat.Dense
+	outputBiases  *mat.Dense
 }
 
-func NewNetwork(config neuralNetConfig) *neuralNet {
-	return &neuralNet{
+func NewNetwork(config neuralNetConfig) *neuralNetwork {
+	return &neuralNetwork{
 		config: config,
 	}
 }
@@ -48,26 +48,26 @@ func sigmoidPrime(x float64) float64 {
 	return x * (1.0 - x)
 }
 
-func (n *neuralNet) train(x, y *mat.Dense) error {
+func (n *neuralNetwork) train(x, y *mat.Dense) error {
 	source := rand.NewSource(time.Now().UnixNano())
 	r := rand.New(source)
 
-	wHidden := mat.NewDense(n.config.inputNeurons, n.config.hiddenNeurons, nil)
-	bHidden := mat.NewDense(1, n.config.hiddenNeurons, nil)
+	hiddenWeights := mat.NewDense(n.config.inputNeurons, n.config.hiddenNeurons, nil)
+	hiddenBiases := mat.NewDense(1, n.config.hiddenNeurons, nil)
 
-	wOut := mat.NewDense(n.config.hiddenNeurons, n.config.outputNeurons, nil)
-	bOut := mat.NewDense(1, n.config.outputNeurons, nil)
+	outputWeights := mat.NewDense(n.config.hiddenNeurons, n.config.outputNeurons, nil)
+	outputBiases := mat.NewDense(1, n.config.outputNeurons, nil)
 
-	wHiddenRaw := wHidden.RawMatrix().Data
-	bHiddenRaw := bHidden.RawMatrix().Data
-	wOutRaw := wOut.RawMatrix().Data
-	bOutRaw := bOut.RawMatrix().Data
+	rawHiddenWeights := hiddenWeights.RawMatrix().Data
+	rawHiddenBiases := hiddenBiases.RawMatrix().Data
+	rawOutputWeights := outputWeights.RawMatrix().Data
+	rawOutputBiases := outputBiases.RawMatrix().Data
 
 	params := [][]float64{
-		wHiddenRaw,
-		bHiddenRaw,
-		wOutRaw,
-		bOutRaw,
+		rawHiddenWeights,
+		rawHiddenBiases,
+		rawOutputWeights,
+		rawOutputBiases,
 	}
 
 	for _, param := range params {
@@ -76,21 +76,21 @@ func (n *neuralNet) train(x, y *mat.Dense) error {
 		}
 	}
 
-	out := new(mat.Dense)
+	output := new(mat.Dense)
 
-	err := n.backPropagate(x, y, wHidden, bHidden, wOut, bOut, out)
+	err := n.backPropagate(x, y, hiddenWeights, hiddenBiases, outputWeights, outputBiases, output)
 	if err != nil {
 		return err
 	}
 
-	n.wHidden = wHidden
-	n.bHidden = bHidden
-	n.wOut = wOut
-	n.bOut = bOut
+	n.hiddenWeights = hiddenWeights
+	n.hiddenBiases = hiddenBiases
+	n.outputWeights = outputWeights
+	n.outputBiases = outputBiases
 
 	return nil
 }
-func (n *neuralNet) backPropagate(x, y, wHidden, bHidden, wOut, bOut, output *mat.Dense) error {
+func (n *neuralNetwork) backPropagate(x, y, wHidden, bHidden, wOut, bOut, output *mat.Dense) error {
 
 	// 'Apply' functions
 
@@ -126,46 +126,46 @@ func (n *neuralNet) backPropagate(x, y, wHidden, bHidden, wOut, bOut, output *ma
 
 		/*
 
-							<----		hidden layer	---><--	output layer	------>
+					<----		hidden layer	---><--	output layer	------>
 
-										_________						back propagate errors o1 and o2
-										|		|			 _______________________
-										|		|\ e1		/	_________			|
-										|		| \	\	   /	|		|			|
-					------------------->|		|  \	\ /	w11	|		|			|
-										|		|	\		\	|		|	o1		|
-										|		|	 \		   \|		|___________|_______\	<output1>
-										|_______|	  \	   w21//|		|					/
-													   \	//	|		|
-										_________		/	/	|		|
-										|		|	/	 \ /w31	|_______|
-										|		|/ e2 	  /		_________
-										|		|	\	 / \w12	|		|
-					------------------->|		|	   \/	\	|		|
-										|		|	   /	\\	|		|	o2
-										|		|	  /	   w22\\|		|___________________\	<output2>
-										|_______|	 /		   /|		|			|		/
-													/	  w32/	|		|			|
-										_________  /	/		|		|			|
-										|		| /	/		/|\	|_______|			|
-										|		|/ e3		 |______________________|
-										|		|
-					------------------->|		|
-										|		|
-										|		|
-										|_______|
+								_________						back propagate errors o1 and o2
+								|		|			 _______________________
+								|		|\ e1		/	_________			|
+								|		| \	\	   /	|		|			|
+			------------------->|		|  \	\ /	w11	|		|			|
+								|		|	\		\	|		|	o1		|
+								|		|	 \		   \|		|___________|_______\	<output1>
+								|_______|	  \	   w21//|		|					/
+											   \	//	|		|
+								_________		/	/	|		|
+								|		|	/	 \ /w31	|_______|
+								|		|/ e2 	  /		_________
+								|		|	\	 / \w12	|		|
+			------------------->|		|	   \/	\	|		|
+								|		|	   /	\\	|		|	o2
+								|		|	  /	   w22\\|		|___________________\	<output2>
+								|_______|	 /		   /|		|			|		/
+											/	  w32/	|		|			|
+								_________  /	/		|		|			|
+								|		| /	/		/|\	|_______|			|
+								|		|/ e3		 |______________________|
+								|		|
+			------------------->|		|
+								|		|
+								|		|
+								|_______|
 
-						-			-						-			 			  -			-		-
-						| w11	w12	|			-	 -		| (w11 x o1) + (w12 x o2) |			|	e1	|
-						| w21   w22	|	  *		| o1 |  =	| (w21 x o1) + (w22 x o2) |		= 	|	e2	|
-						| w31	w32	|			| o2 | 		| (w21 x o1) + (w32 x o2) |			|	e3	|
-						-			-			- 	 -		-			 			  -			-		-
+				-			-						-			 			  -			-		-
+				| w11	w12	|			-	 -		| (w11 x o1) + (w12 x o2) |			|	e1	|
+				| w21   w22	|	  *		| o1 |  =	| (w21 x o1) + (w22 x o2) |		= 	|	e2	|
+				| w31	w32	|			| o2 | 		| (w21 x o1) + (w32 x o2) |			|	e3	|
+				-			-			- 	 -		-			 			  -			-		-
 
-					 --> Transpose of <-- 	---> error <---									---> error from <---
-						weight to output	from output layer									hidden layer
-							layer
+			 --> Transpose of <-- 	---> error <---									---> error from <---
+				weight to output	from output layer									hidden layer
+					layer
 
-							wOut^T				dOutput										  errAtHiddenLayer
+					outputWeights^T				dOutput										  errAtHiddenLayer
 
 		*/
 
