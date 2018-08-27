@@ -369,5 +369,5 @@ func main() {
 		}
 	}
 
-	fmt.Println("Accuracy =", float64(posNeg)/float64(predictionCount))
+	fmt.Printf("Accuracy = %.2f\n", float64(posNeg)/float64(predictionCount))
 }
