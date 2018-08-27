@@ -96,7 +96,6 @@ func (n *neuralNetwork) train(x, y *mat.Dense) error {
 	return nil
 }
 func (n *neuralNetwork) backPropagate(x, y, wHidden, bHidden, wOut, bOut, output *mat.Dense) error {
-
 	// 'Apply' functions
 
 	addBHidden := func(_, col int, v float64) float64 {
@@ -205,7 +204,7 @@ func (n *neuralNetwork) backPropagate(x, y, wHidden, bHidden, wOut, bOut, output
 		bOut.Add(bOut, bOutAdj)
 
 		wHiddenAdj := new(mat.Dense)
-		wHiddenAdj.MulElem(x.T(), dHiddenLayer)
+		wHiddenAdj.Mul(x.T(), dHiddenLayer)
 		wHiddenAdj.Scale(n.config.learningRate, wHiddenAdj)
 		wHidden.Add(wHidden, wHiddenAdj)
 
