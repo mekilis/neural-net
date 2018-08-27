@@ -248,6 +248,40 @@ func sumAlongAxis(axis int, a *mat.Dense) (*mat.Dense, error) {
 
 }
 
+func (n *neuralNetwork) predict(x *mat.Dense) (*mat.Dense, error) {
+	// check weights and biases
+	if n.hiddenWeights == nil || n.outputWeights == nil {
+		return nil, errors.New("null weights supplied")
+	}
+
+	if n.hiddenBiases == nil || n.outputBiases == nil {
+		return nil, errors.New("null biases supplied")
+	}
+
+	output := new(mat.Dense)
+
+	hiddenLayerInput := new(mat.Dense)
+	hiddenLayerInput.Mul(x, n.hiddenWeights)
+	hiddenLayerInput.Apply(func(_, col int, v float64) float64 {
+		return v + n.hiddenBiases.At(0, col)
+	}, hiddenLayerInput)
+
+	hiddenLayerActivations := new(mat.Dense)
+	applySigmoid := func(_, _ int, v float64) float64 {
+		return sigmoid(v)
+	}
+	hiddenLayerActivations.Apply(applySigmoid, hiddenLayerInput)
+
+	outputLayerInput := new(mat.Dense)
+	outputLayerInput.Mul(hiddenLayerActivations, n.outputWeights)
+	outputLayerInput.Apply(func(_, col int, v float64) float64 {
+		return v + n.outputBiases.At(0, col)
+	}, outputLayerInput)
+	output.Apply(applySigmoid, outputLayerInput)
+
+	return output, nil
+}
+
 func main() {
 
 }
