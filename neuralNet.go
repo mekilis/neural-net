@@ -5,8 +5,13 @@
 package main
 
 import (
+	"encoding/csv"
+	"fmt"
+	"log"
 	"math"
 	"math/rand"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -283,5 +288,87 @@ func (n *neuralNetwork) predict(x *mat.Dense) (*mat.Dense, error) {
 }
 
 func main() {
+	file, err := os.Open("train.csv")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
 
+	reader := csv.NewReader(file)
+	reader.FieldsPerRecord = 7
+
+	records, err := reader.ReadAll()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	inputsData := make([]float64, 4*len(records))
+	labelsData := make([]float64, 3*len(records))
+
+	var u, v int
+
+	for i, record := range records {
+		if i == 0 {
+			continue
+		}
+
+		for j, val := range record {
+			value, err := strconv.ParseFloat(val, 64)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			if j >= 4 && j < 7 {
+				labelsData[u] = value
+				u++
+				continue
+			}
+
+			inputsData[v] = value
+			v++
+		}
+	}
+
+	size := len(records)
+	inputs := mat.NewDense(size, 4, inputsData)
+	labels := mat.NewDense(size, 3, labelsData)
+
+	network := NewNetwork(neuralNetConfig{
+		inputNeurons:  4,
+		outputNeurons: 3,
+		hiddenNeurons: 3,
+		numEpochs:     5000,
+		learningRate:  0.3,
+	})
+
+	err = network.train(inputs, labels)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	predictions, err := network.predict(inputs)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var posNeg int
+	predictionCount, _ := predictions.Dims()
+
+	for i := 0; i < predictionCount; i++ {
+		labelRow := mat.Row(nil, i, labels)
+		species := 0
+
+		for j, label := range labelRow {
+			if label == 1.0 {
+				species = j
+				break
+			}
+		}
+
+		if predictions.At(i, species) == floats.Max(mat.Row(nil, i, predictions)) {
+			posNeg++
+		}
+	}
+
+	fmt.Println("Accuracy =", float64(posNeg)/float64(predictionCount))
 }
